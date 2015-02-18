@@ -1,84 +1,143 @@
-function $(elem) {
+(function(window) {
 
-    if ( this === window ) {
-        return new $();
-    }
-
-    this.elems = document.getElementById( elem );
-    return this;
-}
-
-
-$.ready = function(fn) {
-
-    var callbacks = [];
-    var fired = false;
-
-    /*call this when the document is ready*/
-    /*this function protects itself against being called more than once*/
-    function ready() {
-        if (!fired) {
-            // this must be set to true before we start calling callbacks
-            fired = true;
-            for (var i = 0; i < callbacks.length; i++) {
-                // if a callback here happens to add new ready handlers,
-                // the docReady() function will see that it already fired
-                // and will schedule the callback to run right after
-                // this event loop finishes so all handlers will still execute
-                // in order and no new ones will be added to the readyList
-                // while we are processing the list
-                callbacks[i].call(window);
-            }
-            /*allow any closures held by these functions to free*/
-            callbacks = [];
-        }
-    }
-
-    function scrollCheck() {
-        if ( ReadyObj.isReady ) {
-            return;
+    var $ = function(elem) {
+        if (this === window && typeof elem !== "function") {
+            return new $();
         }
 
-        try {
-            document.documentElement.doScroll("left");
-        } catch(e) {
-            setTimeout( scrollCheck, 1 );
-            return;
+        if (typeof elem === "function") {
+            $.ready(elem);
         }
 
-        /*and execute any waiting functions*/
-        ready();
-    }
+        this.elems = document.getElementById( elem );
+        return this;
+    };
 
-    /* Mozilla, Opera, webkit and ie >=9*/
-    if (document.addEventListener) {
-        document.addEventListener('DOMContentLoaded', ready, false);
-    }
+    $.ready = (function(window) {
+        var document = window.document, /*reference to document object*/
+            readyBound = false,         /*check if event for dom ready already being attached*/
+            callbackQueue = [],         /*list of callback*/
+            toplevel = false,           /*check if this window is main windor or inside frame/iframe*/
 
-    /*prior to ie9*/
-    else if (document.attachEvent) {
+            ready = function(callback) {
+                registerOrRunCallback(callback);
+                bindReady();
+            },
 
-        /*if document not is not inside a frame http://stackoverflow.com/questions/10801625/ie-domcontentloaded-documentelement-doscroll*/
-        if ( document.documentElement.doScroll && window.frameElement == null) {
-            scrollCheck();
-        }
-
-        /*above method does not work if inside any frame/iframe*/
-        else {
-            document.attachEvent('onreadystatechange', function() {
-                if (document.readyState == 'interactive') { /*https://developer.mozilla.org/en-US/docs/Web/API/document.readyState*/
-                    ready();
+        /*Register or run callback.If the dom is not ready, que the callback, else invoke it, see DOMReadyCallback*/
+            registerOrRunCallback = function(callback) {
+                if (typeof  callback === "function") {
+                    callbackQueue.push(callback);
                 }
-            });
-        }
-    }
+            },
+
+        /*Bind DOM ready event*/
+            bindReady = function() {
+                /*readyBound is closure, it will remember its value.Incase there is multiple call to $.ready,
+                 no need to reattach this event again and again if dom is already ready*/
+                if (readyBound) {
+                    return;
+                }
+
+                readyBound = true;
+                toplevel = window.frameElement == null;
+
+                /*Catch cases where $.ready is called after the browser ready event has already occurred.*/
+                if (document.readyState !== "loading") {
+                    DOMReady();
+                }
+
+                /*Mozilla, Opera, Webkit and Ie >=9 support this event*/
+                if ( document.addEventListener ) {
+                    /*Use the handy event callback*/
+                    document.addEventListener( "DOMContentLoaded", DOMContentLoaded, false );
+                    /*A fallback to window.onload, that will always work*/
+                    window.addEventListener( "load", DOMContentLoaded, false );
+                    /*If IE event model is used*/
+                } else if ( document.attachEvent ) {
+                    /*Ensure firing before onload,maybe late but safe also for iframes*/
+                    /*http://stackoverflow.com/questions/10801625/ie-domcontentloaded-documentelement-doscroll*/
+                    document.attachEvent( "onreadystatechange", DOMContentLoaded );
+                    /*A fallback to window.onload, that will always work*/
+                    window.attachEvent( "onload", DOMContentLoaded );
+                    /*If IE and not a frame, above method does not work if inside any frame/iframe*/
+                    if ( document.documentElement.doScroll && toplevel ) {
+                        doScrollCheck();
+                    }
+                }
+            },
+
+            DOMContentLoaded = function() {
+                /*Clean up, remove event bind to DOMContentLoaded/onreadystatechange*/
+                if (document.addEventListener) {
+                    document.removeEventListener("DOMContentLoaded", DOMContentLoaded, false);
+                }
+                else {
+                    document.detachEvent("onreadystatechange", DOMContentLoaded);
+                }
+                DOMReady();
+            },
+
+            DOMReady = function() {
+                /*Make sure that the DOM is not already loaded so we dont call this function multiple times*/
+                if (!ready.isReady) {
+                    /*Make sure body exists, at least, in case Ie gets a little overzealous (ticket #5443)*/
+                    if (!document.body) {
+                        return setTimeout(DOMReady, 1);
+                    }
+                    ready.isReady = true;
+                    DOMReadyCallback();
+                }
+            },
+
+            DOMReadyCallback = function() {
+                while (callbackQueue.length) {
+                    (callbackQueue.shift())();
+                }
+                /*When the dom is ready, reevalute this function so any subsequent use of $() to
+                 register event, simply invoke it.No need to push it to the queue*/
+                registerOrRunCallback = function(callback) {
+                    if (typeof callback === "function") {
+                        callback();
+                    }
+                }
+            },
+
+            doScrollCheck = function() {
+                if (ready.isReady) {
+                    return;
+                }
+
+                try {
+                    /*If IE is used, use the trick by Diego Perini*/
+                    /*http://javascript.nwbox.com/IEContentLoaded*/
+                    document.documentElement.doScroll("left");
+                }
+                catch(e) {
+                    setTimeout(doScrollCheck, 1);
+                    return;
+                }
+                DOMReady();
+            };
+
+        /*Is the DOM ready to be used? Set to true once it occurs*/
+        ready.isReady = false;
+
+        return ready;
+
+    })(window);
+
+    window.$ = $;
+
+})(window);
 
 
-    if (fired) {
-        setTimeout(function() {callback(context);}, 1);
-        return;
-    } else {
-        // add the function and context to the list
-        callbacks.push(fn);
-    }
-};
+
+
+
+
+
+
+
+
+
