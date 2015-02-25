@@ -1,24 +1,22 @@
-(function(window) {
+(function(window, undefined) {
 
-    var $ = function(elem) {
+    var $ = function(selectors) {
 
-        if (this === window && typeof elem === "string") {
-            return new $(elem);
+        if (this === window && typeof selectors === "string") {
+            return $.get(selectors);
         }
 
-        if (typeof elem === "function") {
-            return $.ready(elem); /*need to return or "elem that type of function" will be pass to the fn.selector that is expecting a string not a function*/
+        if (typeof selectors === "function") {
+            return $.ready(selectors); /*need to return or "selectors that type of function" will be pass to the $.get that is expecting a string not a function*/
         }
 
-        var elems = $.get(elem);
-        for (var i = 0; i < elems.length; i++) {
-            this[i] = elems[i];
+        for (var i = 0; i < selectors.length; i++) {
+            this[i] = selectors[i];
         }
 
-        this.length = elems.length; /*Set length equal to length of DOM node found, so we can easily iterate over DOM collection*/
+        this.length = selectors.length; /*Set length equal to length of DOM node found, so we can easily iterate over DOM collection*/
         return this;
     };
-
 
     /*Iterate over each DOM node, execute callback on it and store it return value*/
     $.prototype.map = function(fn) {
@@ -29,13 +27,11 @@
         return results.length > 1 ? results : results[0];
     };
 
-
     /*Same as map(), but this method is use for chaining, unlike map() is use to get return value*/
     $.prototype.each = function(fn) {
         this.map(fn);
         return this;
     };
-
 
     $.prototype.text = function (text) {
         if (typeof text !== "undefined") {
@@ -50,13 +46,11 @@
         }
     };
 
-
     $.prototype.html = function (html) {
         if (typeof html !== "undefined") {
-            this.each(function (elem) {
+            return this.each(function (elem) {
                 elem.innerHTML = html;
             });
-            return this;
         }
         else {
             return this.map(function (elem) {
@@ -65,8 +59,7 @@
         }
     };
 
-
-    $.prototype.attr = function (attr, val) {
+    $.prototype.addAttr = function (attr, val) {
         if (typeof val !== "undefined") {
             return this.each(function(elem) {
                 elem.setAttribute(attr, val);
@@ -79,6 +72,77 @@
         }
     };
 
+    $.prototype.remAttr = function(attr) {
+        if(typeof attr !== "undefined") {
+            return this.each(function(elem){
+               elem.removeAttribute(attr);
+            });
+        }
+    };
+
+    $.prototype.addClass = function(className) {
+        return this.each(function(elem) {
+            if(!this.hasClass(elem, className)) {
+                elem.className += (elem.className.length === 0 ? "" : " ") + className;
+            }
+        });
+    };
+
+    $.prototype.remClass = function(className) {
+        return this.each(function(elem){
+            var newClass = ' ' + elem.className.replace( /[\t\r\n]/g, ' ') + ' ';
+            if (this.hasClass(elem, className)) {
+                while (newClass.indexOf(' ' + className + ' ') >= 0 ) {
+                    newClass = newClass.replace(' ' + className + ' ', ' ');
+                }
+                elem.className = newClass.replace(/^\s+|\s+$/g, '');
+                if (elem.className.length === 0) {
+                    elem.removeAttribute('class');
+                }
+            }
+        });
+    };
+
+    $.prototype.css = function(key, val) {
+        if (arguments.length === 1 && $.type(key) === "Object") {
+            return this.each(function(elem) {
+                for (var k in key) {
+                    if (key.hasOwnProperty(k)) {
+                        elem.style[k] = key[k];
+                    }
+                }
+            })
+        }
+        else {
+            return this.each(function(elem) {
+                elem.style[key] = val;
+            });
+        }
+    };
+
+    $.prototype.append = function (elem) { // $('li').append($.create('p'));
+        return this.each(function (parent, i) { //destination element ['li']
+            elem.each(function (child) { // appended element ['p']
+                if (i > 0) {
+                    child = child.cloneNode(true);  // That mean this node has been appended before.
+                                                    // Node can't be in two points of the document simultaneously.
+                                                    // So if the node already has a parent, it must first removed, then appended at the new position.
+                                                    // The Node.cloneNode() can be used to make a copy of the node before appending it under the new parent
+                                                    // https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild
+                }
+                parent.appendChild(child);
+            });
+        });
+    };
+
+    $.prototype.prepend = function (elem) {
+        return this.each(function (parent, i) {
+            for (var j = elem.length -1; j > -1; j--) {
+                var child = (i > 0) ? elem[j].cloneNode(true) : elem[j];
+                parent.insertBefore(child, parent.firstChild);
+            }
+        });
+    };
 
     $.prototype.on = (function () {
         if (document.addEventListener) {
@@ -103,40 +167,170 @@
         }
     }());
 
-
     $.prototype.off = (function () {
         if (document.removeEventListener) {
             return function (evt, fn, cap) {
                 cap = cap || false;
-                return this.forEach(function (el) {
+                return this.each(function (el) {
                     el.removeEventListener(evt, fn, cap);
                 });
             };
         } else if (document.detachEvent)  {
             return function (evt, fn) {
-                return this.forEach(function (el) {
+                return this.each(function (el) {
                     el.detachEvent("on" + evt, fn);
                 });
             };
         } else {
             return function (evt, fn) {
-                return this.forEach(function (el) {
+                return this.each(function (el) {
                     el["on" + evt] = null;
                 });
             };
         }
     }());
 
-
-    $.prototype.css = function() {
-
+    $.prototype.hasClass = function(elem, className) {
+        return new RegExp(" " + className + " ").test(" " + elem.className + " ");
     };
 
+    $.ajax = (function() {
 
-    $.ajax = function() {
+        var _ajax = {};
 
-    };
+        _ajax.getXhr = function() {
+            var http = false;
+            try {
+                http = new(window.XMLHttpRequest||ActiveXObject)('MSXML2.XMLHTTP.3.0'); /*https://msdn.microsoft.com/en-us/library/ms537505(v=vs.85).aspx#_id*/
+            }
+            catch(e){}
+            return http;
+        };
 
+        /*Convert json to url data cause xhr.send() only accept that kind of input*/
+        _ajax.objToQuery = function(obj) {
+            var parts = [];
+            for (var key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(obj[key]));
+                }
+            }
+            return parts.join('&');
+        };
+
+        _ajax.setupOptions = function(options) {
+            var opt = {
+                url: "",        /*Url to be loaded*/
+                method: "GET",  /*GET or POST*/
+                format: "text", /*Return type - could be 'xml','json' or 'text'*/
+                success: null,  /*Function that should be called on success*/
+                error: null,    /*Function that should be called on error*/
+                data: null,     /*Params for POST request*/
+                after: null,    /*Function to run before ajax request*/
+                before: null,   /*Function to run after ajax request*/
+                handler: null   /*custom handler for readystatechange event*/
+            };
+
+            for (var key in opt) {
+                if (options[key]) {
+                    opt[key] = options[key]; /*If the user given setupOptions contain any valid option,that option will be put in the opt array.*/
+                }
+            }
+
+            opt.format = opt.format.toLowerCase();
+            opt.method = opt.method.toUpperCase();
+
+            /*Kill the Cache problem in IE*/
+            opt.url += (opt.url.indexOf("?")+1) ? "&" : "?";
+            opt.url += "uid=" + new Date().getTime();
+            return opt;
+        };
+
+        return function(options) {
+            var http = _ajax.getXhr();
+
+            if (!http||!options.url) { /*Abort ajax if no XhrObject or Url*/
+                return;
+            }
+
+            /*Xml Format need this for some Mozilla Browsers*/
+            if (http.overrideMimeType) {
+                http.overrideMimeType("text/xml");
+            }
+
+            var opt = _ajax.setupOptions(options);
+
+            if (opt.method == "POST") {
+                opt.data = _ajax.objToQuery(opt.data);
+            }
+
+            /*Run function if any, before starting ajax request*/
+            if (opt.before && typeof opt.before === "function") {
+                opt.before();
+            }
+
+            http.open(opt.method, opt.url, true);
+            http.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+            if (opt.method === "POST") {
+                http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+                http.setRequestHeader("Content-length", opt.data.length);
+                http.setRequestHeader("Connection", "close");
+            }
+
+            /*If a custom handler is defined, use it*/
+            if(opt.handler) {
+                http.onreadystatechange = function() {
+                    opt.handler(http);
+                };
+            }
+            else {
+                http.onreadystatechange = function() {  /*Call a function when the state changes*/
+                    if (http.readyState === 4) {        /*Ready State will be 4 when the document is loaded*/
+                        if (http.status === 200) {
+                            var result = "";
+                            if (http.responseText) {
+                                result = http.responseText;
+                            }
+
+                            if (opt.format === "json") {                /*If the return is in JSON format, eval the result before returning it*/
+                                result = result.replace(/[\n\r]/g,"");  /*\n's in Json string, when evaluated will create errors in IE*/
+
+                                try {
+                                    result = eval('('+result+')');      /*Incase data return from server is not Json, we dont want error being raise, instead return null*/
+                                }
+                                catch(e) {
+                                    result = null;
+                                }
+                            }
+
+                            if (opt.format === "xml") {    /*Xml Return*/
+                                result = http.responseXML;
+                            }
+
+                            /*Give the data to the success function*/
+                            if (opt.success && typeof opt.success === "function") {
+                                /*Need to wrap in IEFE cause opt.after should be call after opt.succes thus need to wrap in function*/
+                                (function(){
+                                    opt.success(result);
+                                    if (opt.after && typeof opt.after === "function") {
+                                        opt.after();
+                                    }
+                                    })();
+                            }
+                        }
+                        else {
+                            if (opt.error && typeof opt.error === "function") {
+                                opt.error(http.status); /*Pass status code to error callback*/
+                            }
+                        }
+                    }
+                }
+            }
+            http.send(opt.data);
+
+        }
+    })();
 
     $.ready = (function(window) {
         var document = window.document, /*reference to document object*/
@@ -251,7 +445,6 @@
         return ready;
 
     })(window);
-
 
     $.get = function(selectors) { // 'div#main .selected a[href^="#"], div#body span a.active'
 
@@ -388,17 +581,48 @@
         }
 
         /*We finish parsing all selector, return the result please*/
-        return selected;
+        return new $(selected);
+    };
+
+    $.create = function(elem, attr) {
+        if (arguments.length === 1 && $.type(elem) === "String") { //create complex DOM/attribute straight from string
+            var div = document.createElement('div');
+            div.innerHTML = elem;
+            return new $(Array.prototype.slice.call(div.childNodes)); //so this new element inherit method from $
+        }
+        else { //create dom from string and its attribute using json
+            var el = new $([document.createElement(elem)]); //so this new element inherit method from $
+            if ($.type(attr) === "Object") {
+                if (attr.className) {
+                    el.addClass(attr.className);
+                    delete attr.className;
+                }
+                if (attr.text) {
+                    el.text(attr.text);
+                    delete attr.text;
+                }
+                if (attr.html) { //use attr.html to nested tag inside root `elem`. html() will parse string element, text() simply print it
+                    el.html(attr.html);
+                    delete attr.html;
+                }
+                for (var key in attr) {
+                    if (attr.hasOwnProperty(key)) {
+                        el.addAttr(key, attr[key]);
+                    }
+                }
+            }
+            return el;
+        }
+    };
+
+    /*Proper way to get object type, `typeof` is notoriously unreliable*/
+    $.type = function(o) {
+        return Object.prototype.toString.call(o).slice(8,-1);
     };
 
     window.$ = $;
 
 })(window);
-
-
-
-
-
 
 
 
