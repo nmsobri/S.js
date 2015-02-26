@@ -1,7 +1,7 @@
 #S.js
 S.js is a super-tiny jQuery-like API JavaScript library
 
-#Motivation  
+###Motivation  
 Why i do this? There is already gazillion js library out there. I do it for learning purpose and i always wonder how jQuery work under the hood.
 
 ####Browser support
@@ -10,7 +10,7 @@ S.js  is supported by the following browsers: IE6+, Chrome 6+, Safari 5+, Firefo
 ####What can I do with S.js?
 With S.js you can do the basic stuff jQuery can, for example:
 
-**DOM Ready? **
+**DOM Ready?**
 ```javascript  
 $(function () {
   // this will be executed when the dom is ready!
