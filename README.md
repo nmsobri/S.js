@@ -1,13 +1,13 @@
-#S.js
+# S.js
 S.js is a super-tiny jQuery-like API JavaScript library
 
-###Motivation
+### Motivation
 Why i do this? There is already gazillion js library out there. I do it for learning purpose and i always wonder how jQuery work under the hood.
 
-####Browser support
+#### Browser support
 S.js  is supported by the following browsers: IE6+, Chrome 6+, Safari 5+, Firefox 6+, Opera 6+.
 
-####What can I do with S.js?
+#### What can I do with S.js?
 With S.js you can do the basic stuff jQuery can, for example:
 
 **DOM Ready?**
@@ -54,7 +54,7 @@ $('div + ul');
 $('div ~ ul');
 ```
 
-####Dom Manipulation
+#### Dom Manipulation
 **$.text()** , this method will encode / decode any html markup contain in the string
 ```html
 <p>this is foo</p>
@@ -133,7 +133,7 @@ $('body').append($.elem('<div>foobar</div>')); //append created DOM element to b
 $('div#main').prepend($.elem('<p>this is p</p>)) // prepend created DOM element to div#main element
 ```
 
-###Css
+### Css
 
 **$.css()**, set style to matched element
 ```html
@@ -222,7 +222,7 @@ $.type({}) // return Object
 $.type("") // return String
 ```
 
-####Keep the chain!
+#### Keep the chain!
 All methods of S.js are chainable, just like jQuery with exception to :
 - $.type()
 - $.elem()
